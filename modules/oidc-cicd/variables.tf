@@ -4,13 +4,35 @@ variable "name_prefix" {
 }
 
 variable "github_owner" {
-  description = "GitHub organization or user that owns the repo, e.g. \"my-github-user\"."
+  description = "GitHub organization or user that owns the repo, e.g. \"my-github-user\". Required unless github_subject_prefix_override is set."
   type        = string
+  default     = null
 }
 
 variable "github_repo" {
-  description = "Repository name, without the owner, e.g. \"my-project\"."
+  description = "Repository name, without the owner, e.g. \"my-project\". Required unless github_subject_prefix_override is set."
   type        = string
+  default     = null
+}
+
+variable "github_subject_prefix_override" {
+  description = <<-EOT
+    Overrides the derived "repo:OWNER/REPO" OIDC subject prefix verbatim,
+    ignoring github_owner / github_repo.
+
+    Use this for GitHub's immutable numeric-ID subject form --
+    "repo:OWNER@<owner_id>/REPO@<repo_id>" -- which some accounts' tokens
+    present instead of the plain name form. It survives a repo or org
+    rename where the name form silently stops matching. Get the IDs from
+    `gh api repos/OWNER/REPO --jq '{owner: .owner.id, repo: .id}'`, or read
+    the `sub` claim off a real Actions token once.
+
+    The module appends ":*" (plan role) and ":ref:refs/heads/<apply_branch>"
+    (apply role) to whatever you pass here, exactly as it does for the
+    derived form -- so pass only the prefix, no trailing colon.
+  EOT
+  type        = string
+  default     = null
 }
 
 variable "apply_branch" {

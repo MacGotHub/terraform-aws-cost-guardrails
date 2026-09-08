@@ -40,18 +40,31 @@ check "oidc_provider_configured" {
   }
 }
 
+check "subject_identifies_one_repo" {
+  assert {
+    condition     = var.github_subject_prefix_override != null || (var.github_owner != null && var.github_repo != null)
+    error_message = "Set github_owner and github_repo, or github_subject_prefix_override for GitHub's immutable numeric-ID subject form."
+  }
+}
+
 locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github_actions[0].arn : var.existing_oidc_provider_arn
 
-  # Name-based sub-claim matching (repo:OWNER/REPO:...), not the immutable
-  # numeric owner/repo ID form. GitHub's numeric IDs survive a repo/org
-  # rename where the name-based form doesn't, but getting them means a
-  # one-time `gh api repos/OWNER/REPO` lookup per repo -- real friction
-  # for a module meant to be dropped into someone else's account on the
-  # first try. Name-based is the right default; if this ever gets a
-  # security-conscious second user who wants rename-proof matching, add a
-  # var.sub_prefix_override that skips this derivation entirely.
-  sub_prefix = "repo:${var.github_owner}/${var.github_repo}"
+  # Name-based sub-claim matching (repo:OWNER/REPO:...) is the default: it
+  # needs nothing but the owner and repo strings the caller already knows,
+  # which is what makes this module drop-in on the first try.
+  #
+  # Some accounts' Actions tokens instead present the immutable numeric-ID
+  # form (repo:OWNER@<owner_id>/REPO@<repo_id>:...), which survives a
+  # repo/org rename where the name form silently stops matching. That form
+  # needs a one-time ID lookup per repo, so it's opt-in via
+  # github_subject_prefix_override rather than the default -- the module
+  # treats whatever's passed there as opaque and just appends the same
+  # ":*" / ":ref:..." suffixes it would for the derived form.
+  sub_prefix = coalesce(
+    var.github_subject_prefix_override,
+    var.github_owner != null && var.github_repo != null ? "repo:${var.github_owner}/${var.github_repo}" : null,
+  )
 }
 
 resource "aws_iam_role" "plan" {

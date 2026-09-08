@@ -25,3 +25,12 @@ jobs:
             echo "== $dir =="
             (cd "$dir" && tofu init -backend=false -input=false && tofu validate)
           done
+
+      - name: unit-test modules that have a tests/ dir
+        run: |
+          set -euo pipefail
+          for dir in modules/*/; do
+            [ -d "${dir}tests" ] || continue
+            echo "== $dir =="
+            (cd "$dir" && tofu init -backend=false -input=false && tofu test)
+          done
