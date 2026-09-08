@@ -23,7 +23,7 @@ independently rebuilt some version of the same pattern.
 |---|---|---|
 | [`cost-budget`](modules/cost-budget) | Available | A monthly budget with a real, verified SNS subscriber; optional tag filter, optional hard-stop IAM lockout |
 | [`oidc-cicd`](modules/oidc-cicd) | Available | GitHub Actions OIDC trust boundary -- read-only plan role, branch-pinned read-write apply role, no static keys |
-| `kill-switch` | Planned | SSM-parameter pause flag + alarm-triggered responder, generalized beyond Lambda-only (the gap that let the incident above happen for as long as it did -- the existing pattern didn't cover an always-on ECS/Fargate task) |
+| [`kill-switch`](modules/kill-switch) | Proposed | SSM-parameter pause flag + alarm-triggered responder that stops the compute directly (ECS desired-count 0, Lambda concurrency 0), covering the always-on ECS/Fargate task the old pattern couldn't. Interface drafted; see the module README's open questions |
 | `abuse-alarm` | Planned | Generic log-metric-filter -> CloudWatch alarm -> SNS, for a structured "this looks like abuse, not organic traffic" signal |
 | `waf-basic` | Planned | Rate-limited WAF WebACL for CloudFront or API Gateway |
 
