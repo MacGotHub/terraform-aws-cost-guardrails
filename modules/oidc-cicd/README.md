@@ -12,7 +12,8 @@ permissions. See [Why no permissions?](#why-no-permissions) below.
 
 ```hcl
 module "cicd" {
-  source = "github.com/MacGotHub/terraform-aws-cost-guardrails//modules/oidc-cicd"
+  source  = "app.terraform.io/macgothub/oidc-cicd/aws"
+  version = "~> 0.1"
 
   name_prefix  = "my-project"
   github_owner = "my-github-user"

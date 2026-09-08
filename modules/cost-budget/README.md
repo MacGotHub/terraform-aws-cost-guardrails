@@ -12,7 +12,8 @@ Account-wide:
 
 ```hcl
 module "account_budget" {
-  source = "github.com/MacGotHub/terraform-aws-cost-guardrails//modules/cost-budget"
+  source  = "app.terraform.io/macgothub/cost-budget/aws"
+  version = "~> 0.1"
 
   name           = "account"
   monthly_limit  = 30
@@ -35,7 +36,8 @@ Per-project, tag-filtered, sharing that same topic:
 
 ```hcl
 module "project_budget" {
-  source = "github.com/MacGotHub/terraform-aws-cost-guardrails//modules/cost-budget"
+  source  = "app.terraform.io/macgothub/cost-budget/aws"
+  version = "~> 0.1"
 
   name                          = "my-project"
   monthly_limit                 = 15
@@ -54,7 +56,8 @@ the `enable_hard_stop` variable description):
 
 ```hcl
 module "api_budget" {
-  source = "github.com/MacGotHub/terraform-aws-cost-guardrails//modules/cost-budget"
+  source  = "app.terraform.io/macgothub/cost-budget/aws"
+  version = "~> 0.1"
 
   name                  = "my-public-api"
   monthly_limit         = 20
