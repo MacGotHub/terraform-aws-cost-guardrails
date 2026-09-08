@@ -27,6 +27,31 @@ independently rebuilt some version of the same pattern.
 | `abuse-alarm` | Planned | Generic log-metric-filter -> CloudWatch alarm -> SNS, for a structured "this looks like abuse, not organic traffic" signal |
 | `waf-basic` | Planned | Rate-limited WAF WebACL for CloudFront or API Gateway |
 
+## Gaps this doesn't close yet
+
+A follow-up runaway in the same project (2026-09-07: an `ais-ingest`
+Fargate task writing every AIS position report to DynamoDB, each write
+fanning out to a full-projection GSI -- ~1M write units/hour, ~$38/day)
+sharpened what the planned modules actually need to do:
+
+- **A budget is a slow backstop, not a detector.** The write flood ran for
+  days before month-to-date crossed a percentage threshold. A per-resource
+  CloudWatch alarm (DynamoDB `ConsumedWriteCapacityUnits` per table, Lambda
+  invocations, ECS task count) catches the same event hours in, not days.
+  That's `abuse-alarm`'s job -- treat it as the primary signal, with
+  `cost-budget` as the money-side safety net behind it.
+- **The hard stop has to reach the thing that's actually spending.**
+  `cost-budget`'s `hard_stop_role_names` and the original incident's Budget
+  Action both only revoke a named Lambda role -- neither could have stopped
+  an always-on ECS/Fargate task. `kill-switch` needs a pause path that
+  covers a running container (desired-count 0, or an SSM flag the task
+  polls), not just a Lambda deny policy.
+- **Attribution has to exist before the incident, not after.** The
+  `Project` cost-allocation tag wasn't activated until mid-incident, so
+  tag-filtered Cost Explorer had no history to diagnose from. `cost-budget`
+  exposes `activate_cost_allocation_tag` -- turn it on with the first
+  `apply`, not the first surprise.
+
 ## Quickstart
 
 ```hcl
