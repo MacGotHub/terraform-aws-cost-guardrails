@@ -21,6 +21,7 @@ run "spec_defaults_are_applied" {
   variables {
     alarms = {
       ddb-write = {
+        namespace   = "AWS/DynamoDB"
         metric_name = "ConsumedWriteCapacityUnits"
         dimensions  = { TableName = "unit-events" }
         threshold   = 20000
@@ -31,10 +32,6 @@ run "spec_defaults_are_applied" {
   assert {
     condition     = aws_cloudwatch_metric_alarm.this["ddb-write"].alarm_name == "unit-ddb-write"
     error_message = "alarm name should be <var.name>-<key>"
-  }
-  assert {
-    condition     = aws_cloudwatch_metric_alarm.this["ddb-write"].namespace == "AWS/DynamoDB"
-    error_message = "namespace should default to AWS/DynamoDB"
   }
   assert {
     condition = (
@@ -49,6 +46,10 @@ run "spec_defaults_are_applied" {
   assert {
     condition     = length(aws_cloudwatch_metric_alarm.this["ddb-write"].ok_actions) == 1
     error_message = "notify_on_recovery defaults true, so ok_actions should be set"
+  }
+  assert {
+    condition     = aws_sns_topic.this[0].kms_master_key_id == null
+    error_message = "the created topic must be unencrypted by default -- CloudWatch can't publish through alias/aws/sns"
   }
 }
 
@@ -88,7 +89,7 @@ run "recovery_toggle_off_clears_ok_actions" {
   variables {
     notify_on_recovery = false
     alarms = {
-      x = { metric_name = "ConsumedWriteCapacityUnits", threshold = 1 }
+      x = { namespace = "AWS/DynamoDB", metric_name = "ConsumedWriteCapacityUnits", threshold = 1 }
     }
   }
 
@@ -105,7 +106,7 @@ run "existing_topic_is_used_verbatim" {
     create_sns_topic       = false
     existing_sns_topic_arn = "arn:aws:sns:us-east-1:123456789012:shared"
     alarms = {
-      x = { metric_name = "ConsumedWriteCapacityUnits", threshold = 1 }
+      x = { namespace = "AWS/DynamoDB", metric_name = "ConsumedWriteCapacityUnits", threshold = 1 }
     }
   }
 

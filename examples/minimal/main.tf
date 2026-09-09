@@ -66,8 +66,9 @@ module "budget" {
 }
 
 # -----------------------------------------------
-# Fast detector: a per-resource alarm that fires in minutes, sharing the
-# budget's SNS topic so there's one place to subscribe.
+# Fast detector: a per-resource alarm that fires in minutes, not days.
+# Gets its own (unencrypted) topic -- it can't share cost-budget's, which
+# is alias/aws/sns-encrypted and undeliverable for CloudWatch alarms.
 # -----------------------------------------------
 
 module "abuse_alarm" {
@@ -75,11 +76,9 @@ module "abuse_alarm" {
 
   name = "my-project"
 
-  create_sns_topic       = false
-  existing_sns_topic_arn = module.budget.sns_topic_arn
-
   alarms = {
     ddb-write-runaway = {
+      namespace   = "AWS/DynamoDB"
       metric_name = "ConsumedWriteCapacityUnits"
       dimensions  = { TableName = "my-project-events" }
       threshold   = 20000 # ~15x a known-good baseline
@@ -100,4 +99,9 @@ output "apply_role_arn" {
 output "budget_alerts_topic_arn" {
   description = "Subscribe an email with: aws sns subscribe --topic-arn <this> --protocol email --notification-endpoint you@example.com"
   value       = module.budget.sns_topic_arn
+}
+
+output "abuse_alarm_topic_arn" {
+  description = "Subscribe here too (separate topic -- see the abuse-alarm README on why it can't share the budget's), then force one alarm to ALARM and confirm the email lands."
+  value       = module.abuse_alarm.sns_topic_arn
 }

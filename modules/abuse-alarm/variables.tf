@@ -12,13 +12,15 @@ variable "alarms" {
     fires in minutes rather than waiting days for a monthly budget
     threshold to be crossed.
 
-    Only `metric_name` and `threshold` are required per entry; the rest
-    default to a "sum over 5 minutes, alarm on the first breach" shape.
-    Composite alarms and metric-math are out of scope here -- add a
-    separate aws_cloudwatch_metric_alarm in your own config for those.
+    `namespace`, `metric_name`, and `threshold` are required per entry (no
+    default namespace -- a wrong-but-plausible one produces an alarm that
+    silently never fires). The rest default to a "sum over 5 minutes,
+    alarm on the first breach" shape. Composite alarms and metric-math are
+    out of scope here -- add a separate aws_cloudwatch_metric_alarm in
+    your own config for those.
   EOT
   type = map(object({
-    namespace           = optional(string, "AWS/DynamoDB")
+    namespace           = string
     metric_name         = string
     dimensions          = optional(map(string), {})
     statistic           = optional(string, "Sum")
@@ -52,9 +54,20 @@ variable "existing_sns_topic_arn" {
 }
 
 variable "sns_kms_key_id" {
-  description = "KMS key for the SNS topic this module creates. The AWS-managed key is fine for alarm notifications -- no reason to pay for a customer CMK here."
+  description = <<-EOT
+    KMS key for the SNS topic this module creates. Default is null
+    (unencrypted) on purpose: CloudWatch alarms CANNOT publish to a topic
+    encrypted with the AWS-managed key (alias/aws/sns) -- the alarm fires,
+    the publish is rejected, and no notification goes out. That's the
+    exact failure this module exists to catch.
+
+    To encrypt, pass a *customer-managed* key whose policy already grants
+    cloudwatch.amazonaws.com kms:Decrypt and kms:GenerateDataKey*. Alarm
+    payloads ("metric X is over threshold Y") aren't sensitive, so
+    unencrypted is a reasonable default here.
+  EOT
   type        = string
-  default     = "alias/aws/sns"
+  default     = null
 }
 
 variable "tags" {

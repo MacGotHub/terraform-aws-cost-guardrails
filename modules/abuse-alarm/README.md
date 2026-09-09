@@ -29,8 +29,8 @@ module "abuse_alarm" {
   name = "my-project"
 
   alarms = {
-    # Only metric_name + threshold are required; the rest default to
-    # "Sum over 5 minutes, alarm on the first breach".
+    # namespace + metric_name + threshold are required; the rest default
+    # to "Sum over 5 minutes, alarm on the first breach".
     ddb-write-runaway = {
       namespace   = "AWS/DynamoDB"
       metric_name = "ConsumedWriteCapacityUnits"
@@ -64,15 +64,35 @@ aws sns subscribe \
 # a subscriber -- same failure mode as the incident above.
 ```
 
-To share one topic with `cost-budget` instead of creating a second:
+**Then force the alarm to ALARM once and confirm the email lands.** A
+typo'd `metric_name`, a wrong `namespace`, or an undeliverable topic all
+produce an alarm that looks healthy in the console and never fires. For a
+guardrail that's worse than no alarm.
+
+```bash
+aws cloudwatch set-alarm-state --alarm-name my-project-ddb-write-runaway \
+  --state-value ALARM --state-reason "delivery test"
+# email arrives -> good. Then let it self-correct, or set it back to OK.
+```
+
+### Sharing a topic
+
+You can point these alarms at a topic another module owns:
 
 ```hcl
 module "abuse_alarm" {
   # ...
   create_sns_topic       = false
-  existing_sns_topic_arn = module.budget.sns_topic_arn
+  existing_sns_topic_arn = aws_sns_topic.shared.arn
 }
 ```
+
+...but **not** `cost-budget`'s topic as it ships -- that one is encrypted
+with `alias/aws/sns`, and CloudWatch alarms cannot publish through an
+`alias/aws/sns`-encrypted topic (no KMS integration on that path). Share
+only an unencrypted topic, or one encrypted with a customer-managed key
+whose policy grants `cloudwatch.amazonaws.com` `kms:Decrypt` +
+`kms:GenerateDataKey*`. See `sns_kms_key_id`.
 
 ## Scope
 
@@ -83,19 +103,23 @@ module "abuse_alarm" {
   normal" is the right instinct; a threshold you can't justify from a
   known-good measurement will either miss the runaway or page you at 3am
   for a traffic bump.
+- The default `evaluation_periods = 1` / `period = 300` alarms on a
+  single spiky 5-minute window -- fast, but noisy. Bump `evaluation_periods`
+  to 2-3 for a metric with legitimate short spikes.
 - `notify_on_recovery` (default on) also pings you when an alarm clears --
   useful for confirming a fix landed.
+- The created topic is **unencrypted** by default (see `sns_kms_key_id`).
 
 ## Inputs
 
 | Name | Description | Default |
 |---|---|---|
 | `name` | Prefix for alarms + the SNS topic | -- |
-| `alarms` | Map of key -> alarm spec (`metric_name`, `threshold` required; `namespace`, `dimensions`, `statistic`, `period`, `evaluation_periods`, `datapoints_to_alarm`, `comparison_operator`, `treat_missing_data`, `description` optional) | `{}` |
+| `alarms` | Map of key -> alarm spec (`namespace`, `metric_name`, `threshold` required; `dimensions`, `statistic`, `period`, `evaluation_periods`, `datapoints_to_alarm`, `comparison_operator`, `treat_missing_data`, `description` optional) | `{}` |
 | `notify_on_recovery` | Also notify on alarm -> OK | `true` |
 | `create_sns_topic` | Create a dedicated topic | `true` |
 | `existing_sns_topic_arn` | Topic to reuse when `create_sns_topic = false` | `null` |
-| `sns_kms_key_id` | KMS key for the created topic | `"alias/aws/sns"` |
+| `sns_kms_key_id` | Customer-managed KMS key for the created topic. Default null (unencrypted) -- CloudWatch can't publish through `alias/aws/sns` | `null` |
 | `tags` | Tags for created resources | `{}` |
 
 ## Outputs

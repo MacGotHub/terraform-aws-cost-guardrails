@@ -9,14 +9,19 @@ notes which module actually changed.
 
 ### abuse-alarm (new module)
 
-- Per-resource CloudWatch metric alarms → SNS, keyed by short name. Only
-  `metric_name` + `threshold` required per alarm; the rest default to a
-  "Sum over 5 minutes, alarm on first breach" shape. Same
+- Per-resource CloudWatch metric alarms → SNS, keyed by short name.
+  `namespace` + `metric_name` + `threshold` required per alarm; the rest
+  default to a "Sum over 5 minutes, alarm on first breach" shape. Same
   create/`existing_sns_topic_arn` topic pattern as `cost-budget`, and the
   same "subscribe a real endpoint out of band" rule (no email in state).
   `notify_on_recovery` (default on) also pings on alarm → OK. Single-metric
   static-threshold only; composite / metric-math / anomaly-detection are
   out of scope.
+- The created topic is **unencrypted by default** (`sns_kms_key_id = null`)
+  -- CloudWatch alarms can't publish to an `alias/aws/sns`-encrypted
+  topic, so `cost-budget`'s default would silently drop every alarm.
+  Encrypt only with a customer-managed key policied for
+  `cloudwatch.amazonaws.com`.
 - Ships as v0.4.0 when tagged (new module = minor bump under the shared
   version).
 

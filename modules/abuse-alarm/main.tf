@@ -10,6 +10,11 @@
 # Same "an alert nobody subscribed to isn't an alert" rule as cost-budget:
 # this creates the topic but NOT the email subscription -- an address in
 # .tf/state is a leak. Subscribe out of band (see README) and confirm it.
+#
+# The topic is unencrypted by default: CloudWatch alarms can't publish to
+# an alias/aws/sns-encrypted topic (no KMS integration on that path), and
+# a silently-undeliverable alarm is the failure this module is meant to
+# prevent. See var.sns_kms_key_id for the customer-managed-key path.
 # -----------------------------------------------
 
 resource "aws_sns_topic" "this" {
