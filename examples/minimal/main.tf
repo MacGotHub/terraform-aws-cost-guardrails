@@ -65,6 +65,30 @@ module "budget" {
   tags = { Project = "my-project" }
 }
 
+# -----------------------------------------------
+# Fast detector: a per-resource alarm that fires in minutes, sharing the
+# budget's SNS topic so there's one place to subscribe.
+# -----------------------------------------------
+
+module "abuse_alarm" {
+  source = "../../modules/abuse-alarm"
+
+  name = "my-project"
+
+  create_sns_topic       = false
+  existing_sns_topic_arn = module.budget.sns_topic_arn
+
+  alarms = {
+    ddb-write-runaway = {
+      metric_name = "ConsumedWriteCapacityUnits"
+      dimensions  = { TableName = "my-project-events" }
+      threshold   = 20000 # ~15x a known-good baseline
+    }
+  }
+
+  tags = { Project = "my-project" }
+}
+
 output "plan_role_arn" {
   value = module.cicd.plan_role_arn
 }

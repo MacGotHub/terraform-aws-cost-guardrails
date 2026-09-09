@@ -23,34 +23,33 @@ independently rebuilt some version of the same pattern.
 |---|---|---|
 | [`cost-budget`](modules/cost-budget) | Available | A monthly budget with a real, verified SNS subscriber; optional tag filter, optional hard-stop IAM lockout |
 | [`oidc-cicd`](modules/oidc-cicd) | Available | GitHub Actions OIDC trust boundary -- read-only plan role, branch-pinned read-write apply role, no static keys |
-| `kill-switch` | Planned | SSM-parameter pause flag + alarm-triggered responder, generalized beyond Lambda-only (the gap that let the incident above happen for as long as it did -- the existing pattern didn't cover an always-on ECS/Fargate task) |
-| `abuse-alarm` | Planned | Generic log-metric-filter -> CloudWatch alarm -> SNS, for a structured "this looks like abuse, not organic traffic" signal |
+| [`abuse-alarm`](modules/abuse-alarm) | Available | Per-resource CloudWatch metric alarms -> SNS -- the fast detector a monthly budget isn't. Fires in minutes on a DynamoDB write spike, Lambda invocation flood, etc. |
+| `kill-switch` | Deferred | Alarm/manual → stop the compute directly (ECS desired-count 0, Lambda concurrency 0) — covers the always-on ECS/Fargate task the budget hard-stop can't. Design drafted on the `propose-kill-switch-module` branch; deferred because automated hard-stop is a real availability risk and `abuse-alarm` + a human is most of the value |
 | `waf-basic` | Planned | Rate-limited WAF WebACL for CloudFront or API Gateway |
 
-## Gaps this doesn't close yet
+## The 2026-09-07 follow-up incident, and what it changed
 
-A follow-up runaway in the same project (2026-09-07: an `ais-ingest`
-Fargate task writing every AIS position report to DynamoDB, each write
-fanning out to a full-projection GSI -- ~1M write units/hour, ~$38/day)
-sharpened what the planned modules actually need to do:
+A second runaway in the same project (an `ais-ingest` Fargate task writing
+every AIS position report to DynamoDB, each write fanning out to a
+full-projection GSI -- ~1M write units/hour, ~$38/day) sharpened three
+things:
 
 - **A budget is a slow backstop, not a detector.** The write flood ran for
-  days before month-to-date crossed a percentage threshold. A per-resource
-  CloudWatch alarm (DynamoDB `ConsumedWriteCapacityUnits` per table, Lambda
-  invocations, ECS task count) catches the same event hours in, not days.
-  That's `abuse-alarm`'s job -- treat it as the primary signal, with
-  `cost-budget` as the money-side safety net behind it.
-- **The hard stop has to reach the thing that's actually spending.**
-  `cost-budget`'s `hard_stop_role_names` and the original incident's Budget
-  Action both only revoke a named Lambda role -- neither could have stopped
-  an always-on ECS/Fargate task. `kill-switch` needs a pause path that
-  covers a running container (desired-count 0, or an SSM flag the task
-  polls), not just a Lambda deny policy.
+  days before month-to-date crossed a percentage threshold. *Addressed:*
+  `abuse-alarm` puts a per-resource CloudWatch alarm on the thing that's
+  actually spending -- treat it as the primary signal, with `cost-budget`
+  as the money-side net behind it.
 - **Attribution has to exist before the incident, not after.** The
   `Project` cost-allocation tag wasn't activated until mid-incident, so
-  tag-filtered Cost Explorer had no history to diagnose from. `cost-budget`
-  exposes `activate_cost_allocation_tag` -- turn it on with the first
-  `apply`, not the first surprise.
+  tag-filtered Cost Explorer had no history to diagnose from. *Addressed:*
+  `cost-budget`'s `activate_cost_allocation_tag` -- turn it on with the
+  first `apply`, not the first surprise.
+- **The hard stop has to reach the thing that's actually spending** --
+  still open. `cost-budget`'s `hard_stop_role_names` and a Budget Action
+  both only revoke a named Lambda role; neither stops an always-on
+  ECS/Fargate task. That's `kill-switch`'s job, and it's deferred:
+  automated hard-stop is a real availability risk for these projects, and
+  `abuse-alarm` paging a human who runs one command is most of the value.
 
 ## Quickstart
 

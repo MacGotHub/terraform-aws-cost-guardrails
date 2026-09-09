@@ -1,10 +1,24 @@
 # Changelog
 
 Notable changes to the modules in this repo. Versions are shared: a single
-`vX.Y.Z` tag publishes both `oidc-cicd` and `cost-budget` to the registry,
-so every release below notes which module actually changed.
+`vX.Y.Z` tag publishes every module (`oidc-cicd`, `cost-budget`,
+`abuse-alarm`) to the registry at that version, so each release below
+notes which module actually changed.
 
 ## [Unreleased]
+
+### abuse-alarm (new module)
+
+- Per-resource CloudWatch metric alarms → SNS, keyed by short name. Only
+  `metric_name` + `threshold` required per alarm; the rest default to a
+  "Sum over 5 minutes, alarm on first breach" shape. Same
+  create/`existing_sns_topic_arn` topic pattern as `cost-budget`, and the
+  same "subscribe a real endpoint out of band" rule (no email in state).
+  `notify_on_recovery` (default on) also pings on alarm → OK. Single-metric
+  static-threshold only; composite / metric-math / anomaly-detection are
+  out of scope.
+- Ships as v0.4.0 when tagged (new module = minor bump under the shared
+  version).
 
 ## [0.3.0] - 2026-09-09
 
