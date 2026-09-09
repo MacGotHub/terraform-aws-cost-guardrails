@@ -69,8 +69,9 @@ terraform-aws-cost-guardrails/
 └── examples/minimal/      # Complete working example, relative module paths
 ```
 
-Planned but not started: `abuse-alarm` (recommended next — see README's
-"Gaps this doesn't close yet"), `waf-basic`.
+`abuse-alarm` (`modules/abuse-alarm/`) — per-resource CloudWatch alarms →
+SNS. Same create/existing-topic pattern and out-of-band-subscribe rule as
+`cost-budget`. Planned but not started: `waf-basic`.
 
 ---
 
@@ -168,10 +169,9 @@ Planned but not started: `abuse-alarm` (recommended next — see README's
 - **`kill-switch`** — deferred. Design on branch
   `propose-kill-switch-module`. If revived: build the manual SSM-flag path
   first, skip auto-arm-from-alarm until trusted.
-- **`abuse-alarm`** — recommended next module. A per-resource CloudWatch
-  alarm (DynamoDB write units, Lambda invocations, ECS task count) → SNS →
-  email. Notification-only, low risk, directly fixes the "budget was days
-  late" gap from the incident.
+- **`abuse-alarm`** — built (`modules/abuse-alarm/`, 5 `tofu test` cases).
+  Per-resource CloudWatch alarms → SNS. Ships as v0.4.0 when tagged. No
+  repo consumes it yet.
 - **`orbital-watch` OIDC migration** — not done; needs `cost-budget`
   extended for its killswitch-responder SNS wiring first.
 
@@ -182,11 +182,11 @@ Planned but not started: `abuse-alarm` (recommended next — see README's
 Ordered roughly by value-to-risk. Nothing here is urgent — everything
 merged is applied and drift-free.
 
-1. **Build `abuse-alarm`** (recommended next). Per-resource CloudWatch
-   alarm (DynamoDB `ConsumedWriteCapacityUnits` per table, Lambda
-   `Invocations`, ECS running task count) → SNS → email. Notification
-   only, so near-zero blast radius. Fixes the "budget found the runaway
-   days late" gap directly. No hard design calls needed.
+1. **Adopt `abuse-alarm`.** Built (`modules/abuse-alarm/`, PR pending
+   review). Next: tag v0.4.0, then add a `module "abuse_alarm"` block to
+   each project with alarms on its cost-bearing resources (DynamoDB write
+   units, the voice Lambda's invocations, ECS task count), sharing the
+   existing budget SNS topic, and subscribe the topic for real.
 
 2. **`orbital-watch` OIDC migration.** Same recipe as
    aws-detect-respond / satellite-tracker, but `orbital-watch` also has an
