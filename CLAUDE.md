@@ -174,3 +174,50 @@ Planned but not started: `abuse-alarm` (recommended next — see README's
   late" gap from the incident.
 - **`orbital-watch` OIDC migration** — not done; needs `cost-budget`
   extended for its killswitch-responder SNS wiring first.
+
+---
+
+## Open items / backlog
+
+Ordered roughly by value-to-risk. Nothing here is urgent — everything
+merged is applied and drift-free.
+
+1. **Build `abuse-alarm`** (recommended next). Per-resource CloudWatch
+   alarm (DynamoDB `ConsumedWriteCapacityUnits` per table, Lambda
+   `Invocations`, ECS running task count) → SNS → email. Notification
+   only, so near-zero blast radius. Fixes the "budget found the runaway
+   days late" gap directly. No hard design calls needed.
+
+2. **`orbital-watch` OIDC migration.** Same recipe as
+   aws-detect-respond / satellite-tracker, but `orbital-watch` also has an
+   inline budget + budget-action + killswitch-responder SNS wiring, so
+   `cost-budget` needs extending first (a scoped budget-action exec role
+   input, and an existing-SNS-topic input for the killswitch path).
+   Low priority — the inline code works, this is DRY-only.
+
+3. **`kill-switch` module** — deferred. Design on branch
+   `propose-kill-switch-module`. If picked up, build the manual SSM-flag
+   path first; skip auto-arm-from-alarm until trusted. Four decisions to
+   settle before writing `main.tf` (recommended answers in parentheses):
+   - **ECS restore semantics:** on `safe`, restore `desiredCount` to a
+     value stashed in SSM at arm time, or to a static per-service input?
+     *(→ stash, with a static `restore_desired_count` fallback.)*
+   - **Lambda stop action:** reserved-concurrency-0 for any listed
+     function (blunt, 429s health checks too), or opt-in per function with
+     a cooperative SSM check as the norm? *(→ concurrency-0 as the
+     default; a switch that needs prior app cooperation has the same
+     failure mode as the pattern it replaces. Also expose the param name
+     so apps can layer a graceful response on top.)*
+   - **Merge with `abuse-alarm`?** *(→ keep separate. `kill-switch` takes
+     an SNS topic; anything publishes to it. `abuse-alarm`'s README shows
+     the wiring.)*
+   - **Responder code packaging:** inline `src/responder.py` +
+     `data "archive_file"`, or a committed prebuilt zip? *(→ inline;
+     ~60 lines, stdlib + boto3, no pip deps, so the determinism problem
+     that bit satellite-tracker's layer doesn't apply. Keeps the module
+     self-contained for registry consumers.)*
+
+4. **Nice-to-haves:** bump the deprecated `actions/checkout@v4` etc. to
+   Node-24 majors across all repos' workflows; a stale `hashicorp/tls`
+   entry may sit in `satellite-tracker/opentofu/.terraform.lock.hcl` until
+   someone runs `tofu init -upgrade` (harmless).
