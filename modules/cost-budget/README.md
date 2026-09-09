@@ -73,6 +73,12 @@ module "api_budget" {
 - **A budget nobody subscribed to is worse than no budget.** It looks like
   coverage that doesn't exist. Every example above ends with a real
   subscriber.
+- **An `alias/aws/sns`-encrypted topic silently drops every budget
+  notification.** AWS Budgets can't get a data key from the AWS-managed
+  key, so the publish fails -- same into-the-void failure, one layer down.
+  This module's topic is unencrypted by default; to encrypt, use a
+  customer-managed key policied for `budgets.amazonaws.com`. (Confirmed
+  live: CloudWatch alarms hit the identical wall -- see `abuse-alarm`.)
 - **A tag filter on an unactivated cost-allocation tag silently reports
   $0.** Not an error -- just a budget that looks like it's working and
   isn't. `activate_cost_allocation_tag = true` fixes it, but only set that
@@ -93,7 +99,7 @@ module "api_budget" {
 | `forecasted_threshold` | Forecasted-spend % threshold, or `null` | `100` |
 | `create_sns_topic` | Create a dedicated topic | `true` |
 | `existing_sns_topic_arn` | Reuse an existing topic instead | `null` |
-| `sns_kms_key_id` | KMS key for the topic | `"alias/aws/sns"` |
+| `sns_kms_key_id` | Customer-managed KMS key for the topic. Default null (unencrypted) -- AWS Budgets can't publish through `alias/aws/sns` | `null` |
 | `enable_hard_stop` | Attach a deny-all budget action | `false` |
 | `hard_stop_role_names` | Roles the hard stop locks down | `[]` |
 | `tags` | Tags for created resources | `{}` |

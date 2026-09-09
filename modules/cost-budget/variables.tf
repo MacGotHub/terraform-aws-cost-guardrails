@@ -45,9 +45,21 @@ variable "existing_sns_topic_arn" {
 }
 
 variable "sns_kms_key_id" {
-  description = "KMS key for the SNS topic this module creates. The AWS-managed key is fine for budget notifications -- no reason to pay for a customer CMK here."
+  description = <<-EOT
+    KMS key for the SNS topic this module creates. Default is null
+    (unencrypted) on purpose: AWS Budgets cannot publish to a topic
+    encrypted with the AWS-managed key (alias/aws/sns) -- the notification
+    is silently dropped, which is the exact "alerts into the void" failure
+    this module exists to prevent. (Same limitation hits CloudWatch alarm
+    actions; confirmed live -- see the abuse-alarm module's notes.)
+
+    To encrypt, pass a *customer-managed* key whose policy already grants
+    budgets.amazonaws.com kms:Decrypt and kms:GenerateDataKey*. Budget
+    notifications ("you're at 80% of $15") aren't sensitive, so
+    unencrypted is a reasonable default.
+  EOT
   type        = string
-  default     = "alias/aws/sns"
+  default     = null
 }
 
 variable "enable_hard_stop" {
