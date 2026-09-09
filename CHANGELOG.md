@@ -7,6 +7,8 @@ notes which module actually changed.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-09
+
 ### cost-budget
 
 - `sns_kms_key_id` now defaults to `null` (unencrypted) instead of
