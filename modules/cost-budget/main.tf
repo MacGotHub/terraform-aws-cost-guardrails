@@ -6,6 +6,10 @@ data "aws_caller_identity" "current" {}
 # into the void the entire time a runaway cost was accruing. A budget with
 # nowhere to send its alerts is worse than no budget at all: it looks like
 # coverage that doesn't exist.
+#
+# Unencrypted by default (var.sns_kms_key_id): AWS Budgets can't publish to
+# an alias/aws/sns-encrypted topic, so encrypting it here would recreate
+# the exact into-the-void failure this module exists to stop.
 # -----------------------------------------------
 
 resource "aws_sns_topic" "this" {

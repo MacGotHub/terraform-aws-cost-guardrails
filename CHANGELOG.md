@@ -7,6 +7,20 @@ notes which module actually changed.
 
 ## [Unreleased]
 
+### cost-budget
+
+- `sns_kms_key_id` now defaults to `null` (unencrypted) instead of
+  `alias/aws/sns`. AWS Budgets cannot publish to a topic encrypted with
+  the AWS-managed key -- the notification is silently dropped, recreating
+  the exact "alerts into the void" failure this module was built to stop.
+  Confirmed live: the same wall hits CloudWatch alarm actions (every
+  `orbital-watch-*` alarm firing has logged "Failed to execute action"
+  against its `alias/aws/sns` topic). To encrypt, pass a customer-managed
+  key policied for `budgets.amazonaws.com`.
+- **Adopters on an encrypted topic:** the next `apply` sets the topic to
+  unencrypted in place (no replacement). Then force a budget notification
+  or check a real one lands.
+
 ## [0.4.0] - 2026-09-09
 
 ### abuse-alarm (new module)
