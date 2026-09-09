@@ -6,6 +6,26 @@ so every release below notes which module actually changed.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-09
+
+### oidc-cicd
+
+- Stop deriving the OIDC provider thumbprint from a live
+  `data.tls_certificate` read. GitHub's `token.actions.githubusercontent.com`
+  endpoint is CDN-fronted and returns varying cert chains, so the derived
+  value changed between reads and every `apply` planned a thumbprint
+  update -- which needs `iam:UpdateOpenIDConnectProviderThumbprint` and, in
+  a graph where the provider is a dependency of the CI write policy, a
+  bootstrap-ordering workaround to grant. IAM has not used this thumbprint
+  to verify GitHub's endpoint since July 2023 (trusted-root IdP list), so
+  it's cosmetic.
+- The provider now uses a fixed long-published thumbprint plus
+  `lifecycle { ignore_changes = [thumbprint_list] }`. Existing providers
+  keep whatever value their state holds -- adopting 0.3.0 shows no diff on
+  the field. The `tls` provider is no longer a dependency.
+- No interface change; `github_owner` / `github_repo` /
+  `github_subject_prefix_override` all behave as in 0.2.0.
+
 ## [0.2.0] - 2026-09-07
 
 ### oidc-cicd

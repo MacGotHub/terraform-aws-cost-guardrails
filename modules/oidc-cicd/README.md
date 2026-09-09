@@ -69,10 +69,27 @@ point of doing OIDC role separation in the first place.
 
 What *is* genuinely reusable, and what this module owns, is the trust
 policy: the read/write split, the branch pin on the write role, and the
-OIDC provider/thumbprint plumbing that's easy to get subtly wrong.
-Permissions are yours to add, one PR at a time, growing on purpose as
-your project grows -- see the sibling projects this module was extracted
-from for what that looks like at a larger scale than the example above.
+OIDC provider plumbing. Permissions are yours to add, one PR at a time,
+growing on purpose as your project grows -- see the sibling projects this
+module was extracted from for what that looks like at a larger scale than
+the example above.
+
+## The provider thumbprint (v0.3.0+)
+
+When `create_oidc_provider = true`, the provider is created with a fixed,
+long-published GitHub Actions thumbprint and `ignore_changes` on the
+field. Since July 2023 IAM does not use the thumbprint to verify
+`token.actions.githubusercontent.com` -- it's on AWS's trusted-root IdP
+list -- so the value is effectively cosmetic.
+
+v0.1-0.2 derived it live from `data.tls_certificate`. That endpoint is
+CDN-fronted and returns varying cert chains, so the derived value changed
+across reads and every `apply` planned a thumbprint update -- which needs
+`iam:UpdateOpenIDConnectProviderThumbprint` and, where the provider is a
+dependency of your CI write policy, a bootstrap-ordering workaround to
+grant it. v0.3.0 drops the `tls` provider dependency entirely. Existing
+providers keep whatever thumbprint their state holds; nothing re-writes
+it.
 
 ## Subject matching: name form vs. immutable IDs
 
@@ -90,7 +107,7 @@ trailing colon) as `github_subject_prefix_override` and leave
 ```hcl
 module "cicd" {
   source  = "app.terraform.io/macgothub/oidc-cicd/aws"
-  version = "~> 0.2"
+  version = "~> 0.3.0"
 
   name_prefix = "my-project"
 

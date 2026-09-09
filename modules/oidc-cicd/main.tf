@@ -14,23 +14,45 @@
 # plan_role_name / apply_role_name, scoped to exactly what that project's
 # plan and apply steps touch. See examples/minimal for the pattern.
 #
-# GitHub rotates the TLS cert on token.actions.githubusercontent.com
-# periodically (it did industry-wide in 2023) -- the thumbprint is fetched
-# live via data.tls_certificate, never pasted as a literal.
+# Thumbprint handling (changed in v0.3.0): since July 2023, IAM does not
+# use the thumbprint to verify token.actions.githubusercontent.com at all
+# -- it's on AWS's list of OIDC IdPs backed by a trusted root CA. The API
+# still requires the field to be non-empty on creation, so this passes a
+# long-published GitHub Actions value, and `ignore_changes` keeps every
+# subsequent apply from touching it.
+#
+# The old approach (v0.1-0.2) derived the value live from
+# data.tls_certificate.certificates[last]. That endpoint is CDN-fronted
+# and returns varying cert chains, so `[last]` came back different across
+# reads and every apply planned a thumbprint update -- which needs
+# iam:UpdateOpenIDConnectProviderThumbprint and, in a graph where the
+# provider is a dependency of the CI write policy, a bootstrap-ordering
+# dance to grant. Not worth it for a value AWS ignores.
+#
+# GITHUB_ACTIONS_OIDC_THUMBPRINT below is the intermediate CA fingerprint
+# HashiCorp's own docs and AWS's GitHub OIDC guide have used for years.
 # -----------------------------------------------
 
-data "tls_certificate" "github_actions" {
-  count = var.create_oidc_provider ? 1 : 0
-  url   = "https://token.actions.githubusercontent.com"
+locals {
+  # Only read for a fresh provider create; existing providers keep whatever
+  # thumbprint their state already holds (see ignore_changes).
+  github_actions_oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
 }
 
 resource "aws_iam_openid_connect_provider" "github_actions" {
   count           = var.create_oidc_provider ? 1 : 0
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github_actions[0].certificates[length(data.tls_certificate.github_actions[0].certificates) - 1].sha1_fingerprint]
+  thumbprint_list = [local.github_actions_oidc_thumbprint]
 
   tags = var.tags
+
+  lifecycle {
+    # AWS ignores this for GitHub's endpoint; don't let a drifted value
+    # (e.g. one a pre-0.3.0 version of this module wrote) provoke an
+    # update on every apply.
+    ignore_changes = [thumbprint_list]
+  }
 }
 
 check "oidc_provider_configured" {
