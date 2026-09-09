@@ -4,7 +4,6 @@
 # network call to token.actions.githubusercontent.com.
 
 mock_provider "aws" {}
-mock_provider "tls" {}
 
 variables {
   name_prefix                = "unit"
