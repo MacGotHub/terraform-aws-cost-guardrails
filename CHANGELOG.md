@@ -7,6 +7,8 @@ notes which module actually changed.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-09
+
 ### abuse-alarm (new module)
 
 - Per-resource CloudWatch metric alarms → SNS, keyed by short name.
@@ -22,8 +24,9 @@ notes which module actually changed.
   topic, so `cost-budget`'s default would silently drop every alarm.
   Encrypt only with a customer-managed key policied for
   `cloudwatch.amazonaws.com`.
-- Ships as v0.4.0 when tagged (new module = minor bump under the shared
-  version).
+
+New module = minor bump; `oidc-cicd` and `cost-budget` also go to 0.4.0
+under the shared version (no changes to either).
 
 ## [0.3.0] - 2026-09-09
 
